@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dashboard de Fus&#227;o FTTH</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+/* Layout: header + faixa de KPIs, duas roscas lado a lado, linha de evolu&#231;&#227;o full-width, tabela por cidade filtr&#225;vel */
+:root{
+  --bg:#eef1f6; --surface:#ffffff; --surface2:#f6f8fc; --fg:#15223b; --muted:#5d6b85;
+  --line:#dde3ee; --accent:#1763c7; --good:#1fa463; --good-soft:#e4f5ec; --warn:#e2574e; --warn-soft:#fdecea;
+  --shadow:0 1px 2px rgba(20,34,61,.06),0 6px 20px rgba(20,34,61,.06);
+  --ff-head:"Space Grotesk",system-ui,sans-serif; --ff-body:"Inter",system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0c1220; --surface:#131c2e; --surface2:#182236; --fg:#e8eef9; --muted:#9db0ce;
+  --line:#263349; --accent:#5aa0ff; --good:#36c184; --good-soft:#11331f; --warn:#f0776d; --warn-soft:#3a1a18;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35); color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0c1220; --surface:#131c2e; --surface2:#182236; --fg:#e8eef9; --muted:#9db0ce;
+  --line:#263349; --accent:#5aa0ff; --good:#36c184; --good-soft:#11331f; --warn:#f0776d; --warn-soft:#3a1a18;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35); color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--ff-body);line-height:1.5;
+  -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+.wrap{max-width:1180px;margin:0 auto;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:28px 56px}
+h1,h2,h3{font-family:var(--ff-head);margin:0;text-wrap:balance}
+.eyebrow{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600}
+
+/* Header */
+header{display:flex;flex-wrap:wrap;gap:16px 24px;align-items:flex-end;justify-content:space-between;margin-bottom:26px}
+header h1{font-size:clamp(1.5rem,4vw,2.1rem);font-weight:700;letter-spacing:-.01em;line-height:1.1}
+header .sub{color:var(--muted);font-size:.95rem;margin-top:4px}
+.badge{display:inline-flex;align-items:center;gap:7px;font-size:.78rem;font-weight:600;
+  padding:6px 12px;border-radius:999px;background:var(--good-soft);color:var(--good);border:1px solid transparent}
+.badge .dot{width:8px;height:8px;border-radius:50%;background:currentColor}
+.badge.snap{background:#fff3e0;color:#b5731a;border-color:#f3dcb5}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .badge.snap{background:#33260f;color:#e7a94e;border-color:#574219}}
+:root[data-theme="dark"] .badge.snap{background:#33260f;color:#e7a94e;border-color:#574219}
+
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px 20px;box-shadow:var(--shadow);
+  display:flex;flex-direction:column;gap:6px;min-width:0}
+.kpi .lab{font-size:.74rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.kpi .val{font-family:var(--ff-head);font-size:clamp(1.7rem,3.4vw,2.3rem);font-weight:700;line-height:1}
+.kpi .foot{font-size:.82rem;color:var(--muted)}
+.kpi.good{border-top:3px solid var(--good)}
+.kpi.warn{border-top:3px solid var(--warn)}
+.kpi .val.g{color:var(--good)} .kpi .val.w{color:var(--warn)}
+
+/* Donuts */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:22px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:var(--shadow)}
+.card h2{font-size:1.05rem;font-weight:600;margin-bottom:4px}
+.card .cap{color:var(--muted);font-size:.85rem;margin-bottom:12px}
+.donutrow{display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+.donut{position:relative;flex:0 0 auto}
+.donut .mid{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.donut .mid .pct{font-family:var(--ff-head);font-size:1.6rem;font-weight:700;line-height:1}
+.donut .mid .mlab{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.leg{display:flex;flex-direction:column;gap:10px;font-size:.9rem;min-width:0}
+.leg .row{display:flex;align-items:center;gap:9px}
+.leg .sw{width:12px;height:12px;border-radius:3px;flex:0 0 auto}
+.leg b{font-family:var(--ff-head)}
+
+/* Evolution */
+.evo h2{font-size:1.05rem;font-weight:600;margin-bottom:2px}
+.evo .cap{color:var(--muted);font-size:.85rem;margin-bottom:10px}
+.evo-legend{display:flex;gap:18px;font-size:.82rem;color:var(--muted);margin-bottom:6px;flex-wrap:wrap}
+.evo-legend .row{display:flex;align-items:center;gap:7px}
+.evo-legend .sw{width:14px;height:3px;border-radius:2px}
+.chartbox{width:100%;overflow-x:auto}
+
+/* Table */
+.tablecard{margin-top:22px}
+.tbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:14px}
+.filters{display:flex;gap:6px;flex-wrap:wrap}
+.filters button{font-family:var(--ff-body);font-size:.84rem;font-weight:600;color:var(--muted);
+  background:var(--surface2);border:1px solid var(--line);border-radius:999px;padding:6px 14px;cursor:pointer}
+.filters button:hover{color:var(--fg)}
+.filters button[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+.search{font-family:var(--ff-body);font-size:.88rem;color:var(--fg);background:var(--surface2);
+  border:1px solid var(--line);border-radius:10px;padding:8px 12px;min-width:150px}
+.tscroll{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.9rem;min-width:560px}
+thead th{position:sticky;top:0;background:var(--surface2);color:var(--muted);font-weight:600;text-align:right;
+  padding:11px 12px;font-size:.78rem;letter-spacing:.03em;text-transform:uppercase;cursor:pointer;white-space:nowrap;
+  border-bottom:1px solid var(--line)}
+thead th.l{text-align:left}
+thead th .arr{opacity:.5;font-size:.7rem}
+tbody td{padding:10px 12px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+tbody td.l{text-align:left;font-weight:500}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:var(--surface2)}
+.uf{display:inline-block;font-size:.72rem;font-weight:600;color:var(--muted);background:var(--surface2);
+  border:1px solid var(--line);border-radius:6px;padding:1px 7px;margin-left:8px}
+.mini{display:inline-flex;align-items:center;gap:8px;justify-content:flex-end}
+.bar{width:54px;height:7px;border-radius:4px;background:var(--line);overflow:hidden;flex:0 0 auto}
+.bar>i{display:block;height:100%;border-radius:4px}
+.pctnum{font-family:var(--ff-head);font-weight:600;min-width:46px;display:inline-block}
+tfoot td{padding:12px;font-weight:700;background:var(--surface2);border-top:2px solid var(--line);text-align:right;font-family:var(--ff-head)}
+tfoot td.l{text-align:left}
+.footnote{color:var(--muted);font-size:.8rem;margin-top:14px;line-height:1.6}
+.footnote code{background:var(--surface2);padding:1px 6px;border-radius:5px;font-size:.92em}
+@media (max-width:760px){.kpis{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}}
+@media (max-width:440px){.kpis{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow" id="t-eye"></div>
+      <h1 id="t-h1"></h1>
+      <div class="sub" id="t-sub"></div>
+    </div>
+    <div style="text-align:right;display:flex;flex-direction:column;gap:8px;align-items:flex-end">
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="reload" title="Recarregar da planilha" style="font-family:var(--ff-body);font-size:.8rem;font-weight:600;color:var(--muted);background:var(--surface2);border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer">&#8635; Recarregar</button>
+        <span class="badge snap" id="livebadge"><span class="dot"></span><span id="asof">SNAPSHOT &middot; 25/11/2026</span></span>
+      </div>
+      <span style="font-size:.8rem;color:var(--muted)" id="citycount"></span>
+    </div>
+  </header>
+
+  <section class="kpis" id="kpis"></section>
+
+  <section class="grid2">
+    <div class="card">
+      <h2>CTOs (terminais)</h2>
+      <div class="cap" id="t-cap1"></div>
+      <div class="donutrow">
+        <div class="donut" id="donut-cto"></div>
+        <div class="leg" id="leg-cto"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Caixas de emenda (CEOs)</h2>
+      <div class="cap" id="t-cap2"></div>
+      <div class="donutrow">
+        <div class="donut" id="donut-ceo"></div>
+        <div class="leg" id="leg-ceo"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card evo">
+    <h2 id="t-evoh"></h2>
+    <div class="cap" id="t-evocap"></div>
+    <div class="evo-legend">
+      <div class="row"><span class="sw" style="background:var(--good)"></span>CTOs</div>
+      <div class="row"><span class="sw" style="background:var(--accent)"></span>CEOs</div>
+    </div>
+    <div class="chartbox" id="evo"></div>
+  </section>
+
+  <section class="card tablecard">
+    <div class="tbar">
+      <div>
+        <h2>Por cidade</h2>
+        <div class="cap" style="margin:0" id="t-tcap"></div>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+        <input class="search" id="search" type="search" placeholder="Buscar cidade..." aria-label="Buscar cidade">
+        <div class="filters" id="filters"></div>
+      </div>
+    </div>
+    <div class="tscroll">
+      <table>
+        <thead><tr id="thead"></tr></thead>
+        <tbody id="tbody"></tbody>
+        <tfoot id="tfoot"></tfoot>
+      </table>
+    </div>
+    <div class="footnote" id="t-foot">
+      Retrato (snapshot) dos dados em <b>25/11/2026</b>, extra&#237;do da planilha-base viva.
+      Totais j&#225; excluem CTO/CEO em projeto, teste e rede a cabo.
+      Para atualizar os n&#250;meros, pe&#231;a ao Claude para republicar com a base mais recente.
+    </div>
+  </section>
+</div>
+
+<script>
+const fmt=n=>n.toLocaleString('pt-BR');
+const pct=(a,b)=>b>0?(a/b*100):0;
+const pf=v=>v.toFixed(1).replace('.',',')+'%';
+
+// Totais oficiais (Historico 25/11/2026) \u2014 reserva; sobrescrito pela leitura ao vivo
+let TOT={ctt:59906,ctc:42947,cxt:8527,cxc:5657};
+
+// Historico: [date, ctt, ctc, cxt, cxc]
+let HIST=[
+["2026-08-18",58532,30243,8456,4599],["2026-09-01",59273,31280,8467,4740],
+["2026-10-05",59706,34719,8510,4896],["2026-10-23",60012,35963,8546,4969],
+["2026-10-29",59919,36853,8549,5131],["2026-11-04",59916,38442,8549,5250],
+["2026-11-12",59925,40255,8549,5370],["2026-11-18",59912,41428,8531,5514],
+["2026-11-23",59912,41929,8531,5575],["2026-11-25",59906,42947,8527,5657]
+];
+
+// Dados por cidade: [cidade, uf, cxt, cxc, ctt, ctc] \u2014 reserva; sobrescrito pela leitura ao vivo
+let DADOS=[["Campina Grande","PB",1352,1064,8153,6957],["Garanhuns","PE",191,111,2147,1450],["Guarabira","PB",221,207,2030,1291],["Jacobina","BA",149,101,1616,72],["Senhor do Bonfim","BA",149,103,1494,35],["Caic\u00f3","RN",108,96,1396,1334],["Touros","RN",308,150,1177,519],["Extremoz (Imp.)","RN",156,117,1227,872],["Irec\u00ea","BA",78,74,1143,12],["Jo\u00e3o C\u00e2mara (Imp.)","RN",198,91,930,637],["Conde","PB",143,66,932,624],["Cear\u00e1-Mirim (Imp.)","RN",167,67,779,179],["Cajazeiras","PB",98,79,833,833],["Santa Cruz","RN",26,19,900,374],["(sem cidade)","",874,267,51,49],["Capim Grosso","BA",79,65,808,731],["Lajedo","PE",110,45,771,367],["Belo Jardim","PE",94,68,758,755],["Nova Cruz","RN",57,57,781,781],["Queimadas","PB",46,26,773,134],["Campo Formoso","BA",72,51,693,475],["Natal (Imp.)","RN",140,91,625,498],["Sousa","PB",82,70,676,674],["Afogados da Ingazeira","PE",61,56,634,634],["Monteiro (Imp.)","PB",59,52,614,503],["Jo\u00e3o Pessoa","PB",166,121,475,446],["Esperan\u00e7a (Imp.)","PB",36,32,541,510],["S\u00e3o Jos\u00e9 de Mipibu","RN",59,40,510,455],["S\u00e3o Bento do Una","PE",63,25,487,153],["Sol\u00e2nea","PB",27,26,522,521],["Parelhas (Imp.)","RN",70,49,474,469],["S\u00e3o Miguel do Gostoso","RN",87,10,436,31],["Rio do Fogo","RN",60,27,460,134],["Euclides da Cunha","BA",35,35,461,3],["N\u00edsia Floresta","RN",58,52,438,438],["Pombal","PB",31,29,462,461],["Ponto Novo","BA",36,30,429,3],["S\u00e3o Jos\u00e9 do Egito","PE",37,32,427,427],["Lagoa Seca (Imp.)","PB",36,27,414,157],["Maxaranguape","RN",98,10,348,0],["Iti\u00faba","BA",55,37,382,15],["Goianinha","RN",36,35,401,401],["Po\u00e7o Branco (Imp.)","RN",78,57,356,345],["Pocinhos (Imp.)","PB",64,12,359,14],["Canguaretama","RN",43,33,377,377],["Filad\u00e9lfia","BA",51,27,365,20],["Rem\u00edgio (Imp.)","PB",28,23,383,377],["Cuit\u00e9 (Imp.)","PB",22,18,363,362],["Jucurutu","RN",27,26,358,329],["Ja\u00e7an\u00e3","RN",26,23,354,343],["Sert\u00e2nia (Imp.)","PE",37,29,332,147],["Tangar\u00e1","RN",27,27,335,334],["Santa Luzia (Imp.)","PB",100,42,257,251],["Sum\u00e9 (Imp.)","PB",35,32,322,312],["Puxinan\u00e3","PB",47,40,303,288],["Jardim de Piranhas","RN",34,30,313,300],["Cai\u00e7ara do Norte","RN",72,53,272,220],["Caldeir\u00e3o Grande","BA",42,36,290,178],["Macau (Imp.)","RN",36,31,295,227],["Ar\u00eas","RN",24,20,305,271],["Bom Jesus","RN",20,18,305,284],["Alagoinha","PB",13,1,300,230],["S\u00e3o Paulo do Potengi","RN",41,30,268,263],["Carna\u00faba dos Dantas (Imp.)","RN",31,28,275,273],["Tibau do Sul","RN",32,28,274,274],["Picu\u00ed (Imp.)","PB",22,17,283,238],["Areia","PB",3,1,297,250],["Alagoa Grande","PB",25,21,272,272],["Cachoeirinha","PE",54,47,241,235],["Bananeiras","PB",32,30,261,261],["Jupi","PE",29,25,243,243],["Canhotinho","PE",20,20,250,249],["Pureza","RN",42,10,219,108],["Guamar\u00e9 (Imp.)","RN",31,30,224,220],["Cabedelo","PB",31,30,224,213],["Juazeirinho (Imp.)","PB",41,29,214,200],["Soledade (Imp.)","PB",28,25,221,212],["Uira\u00fana","PB",13,11,235,231],["S\u00edtio Novo","RN",24,8,224,129],["Jardim do Serid\u00f3 (Imp.)","RN",16,11,221,219],["Triunfo","PB",25,12,209,142],["S\u00e3o Jo\u00e3o do Rio do Peixe","PB",17,14,212,212],["Areial","PB",33,28,190,184],["S\u00e3o Sebasti\u00e3o de Lagoa de Ro\u00e7a (Imp.)","PB",21,20,198,195],["S\u00e3o Rafael","RN",16,16,203,201],["Parazinho","RN",44,21,159,117],["Taipu (Imp.)","RN",39,32,163,149],["Maca\u00edba","RN",44,6,155,0],["Jurema","PE",16,15,181,175],["Acari (Imp.)","RN",22,21,172,170],["Olivedos (Imp.)","PB",21,9,172,95],["Serra Branca (Imp.)","PB",18,18,171,171],["Alagoa Nova","PB",18,7,167,162],["Cruzeta","RN",9,7,176,166],["Sa\u00fade","BA",19,16,163,144],["Alto do Rodrigues (Imp.)","RN",16,16,164,164],["Tapero\u00e1 (Imp.)","PB",20,18,158,158],["S\u00e3o Jos\u00e9 do Jacu\u00edpe","BA",13,10,160,0],["Bel\u00e9m","PB",17,14,154,154],["Nova Floresta (Imp.)","PB",14,12,157,154],["Pirpirituba","PB",5,4,163,93],["Camala\u00fa (Imp.)","PB",13,13,154,154],["Itatuba","PB",30,20,134,131],["S\u00e3o Mamede (Imp.)","PB",15,14,149,149],["Pedra Grande","RN",54,14,106,96],["S\u00e3o Jo\u00e3o do Sabugi","RN",18,13,139,135],["Pend\u00eancias (Imp.)","RN",12,10,144,144],["Quixabeira","BA",14,5,138,0],["Junco do Serid\u00f3 (Imp.)","PB",13,13,138,134],["Mariz\u00f3polis","PB",9,9,142,135],["Serra do Mel","RN",8,8,143,143],["Andorinha","BA",18,16,132,130],["Bel\u00e9m do Brejo do Cruz","PB",6,5,135,134],["S\u00e3o Gon\u00e7alo do Amarante (Imp.)","RN",28,26,111,109],["Equador","RN",13,13,125,125],["Lajes Pintadas","RN",10,10,124,113],["Condado","PB",7,6,125,125],["Barra de Santa Rosa (Imp.)","PB",6,6,125,124],["Riachuelo","RN",34,6,93,2],["Congo (Imp.)","PB",10,10,116,116],["Cubati (Imp.)","PB",7,6,117,115],["S\u00e3o Jos\u00e9 do Serid\u00f3","RN",9,9,115,114],["Cacimba de Dentro","PB",3,0,120,120],["Massaranduba","PB",19,15,100,100],["Bara\u00fana (Imp.)","PB",7,6,105,98],["Joca Claudino","PB",12,6,100,100],["Baixio","CE",11,8,100,100],["S\u00e3o Sebasti\u00e3o do Umbuzeiro (Imp.)","PB",9,9,100,94],["S\u00e3o Jos\u00e9 do Sabugi (Imp.)","PB",12,12,95,94],["S\u00e3o Vicente do Serido (Imp.)","PB",9,8,96,96],["Ouro Branco (Imp.)","RN",15,12,87,85],["Coronel Ezequiel","RN",7,7,94,94],["S\u00e3o Fernando","RN",9,7,89,83],["Ruy Barbosa","RN",14,13,83,82],["Po\u00e7o de Jos\u00e9 de Moura","PB",8,8,89,88],["S\u00e3o Bentinho","PB",7,7,87,87],["Umari","CE",4,3,90,90],["Barcelona","RN",18,18,74,74],["Senador Georgino Avelino","RN",19,14,72,72],["Boa Vista (Imp.)","PB",11,11,76,72],["Pedra Lavrada (Imp.)","PB",8,6,79,79],["Ten\u00f3rio (Imp.)","PB",5,5,81,81],["Lagoa de Velhos","RN",15,14,67,67],["Serra Redonda","PB",6,6,75,75],["Bernardino Batista","PB",7,2,65,65],["Montadas","PB",10,10,57,57],["Santana do Serid\u00f3 (Imp.)","RN",5,5,60,59],["Soss\u00eago (Imp.)","PB",7,5,56,56],["Santa Maria","RN",6,0,56,0],["Ipueira","RN",6,6,53,52],["Frei Martinho (Imp.)","PB",5,5,53,52],["V\u00e1rzea (Imp.)","PB",12,10,45,43],["Nova Palmeira (Imp.)","PB",4,3,52,52],["Lastro","PB",5,3,51,51],["Zabel\u00ea (Imp.)","PB",7,6,49,47],["Pil\u00f5ezinhos","PB",4,4,47,47],["Timba\u00faba dos Batistas","RN",5,4,45,44],["Porto do Mangue","RN",5,4,44,44],["Riach\u00e3o do Bacamarte","PB",6,6,43,42],["Gurj\u00e3o (Imp.)","PB",8,4,37,36],["Vila Flor","RN",3,3,40,40],["Ca\u00e9m","BA",5,5,34,2],["Pindoba\u00e7u","BA",9,2,30,0],["Ibirajuba","PE",3,2,32,32],["Jucati","PE",2,2,31,31],["Santa Helena","PB",1,1,16,16],["Caruaru","PE",12,9,0,0],["Carnaubais","RN",5,5,0,0],["Sap\u00e9","PB",4,4,0,0],["Carna\u00faba dos Dantas","RN",1,0,1,1],["Almino Afonso","RN",2,2,0,0],["Brejo do Cruz","PB",2,1,0,0],["S\u00e3o Jo\u00e3o do Tigre","PB",2,2,0,0],["Passa e Fica","RN",2,2,0,0],["Frutuoso Gomes","RN",2,2,0,0],["S\u00e3o Caitano","PE",2,2,0,0],["Currais Novos","RN",2,0,0,0],["Livramento","PB",1,1,0,0],["Patos","PB",1,1,0,0],["Cuitegi","PB",1,1,0,0],["S\u00e3o Jos\u00e9 dos Cordeiros","PB",1,1,0,0],["Ant\u00f4nio Martins","RN",1,0,0,0],["Pesqueira","PE",1,0,0,0],["A\u00e7u","RN",1,0,0,0],["Parnamirim","RN",1,0,0,0]];
+
+const css=k=>getComputedStyle(document.documentElement).getPropertyValue(k).trim();
+
+/* ---------- KPIs ---------- */
+function renderKpis(){
+  const ctoSem=TOT.ctt-TOT.ctc, ceoSem=TOT.cxt-TOT.cxc;
+  const items=[
+    {lab:"CTOs com fus\u00e3o",val:fmt(TOT.ctc),cls:"good",vcls:"g",foot:pf(pct(TOT.ctc,TOT.ctt))+" de "+fmt(TOT.ctt)},
+    {lab:"CTOs sem fus\u00e3o",val:fmt(ctoSem),cls:"warn",vcls:"w",foot:"faltam fusionar"},
+    {lab:"CEOs com fus\u00e3o",val:fmt(TOT.cxc),cls:"good",vcls:"g",foot:pf(pct(TOT.cxc,TOT.cxt))+" de "+fmt(TOT.cxt)},
+    {lab:"CEOs sem fus\u00e3o",val:fmt(ceoSem),cls:"warn",vcls:"w",foot:"faltam fusionar"}
+  ];
+  document.getElementById('kpis').innerHTML=items.map(k=>
+    `<div class="kpi ${k.cls}"><span class="lab">${k.lab}</span>`+
+    `<span class="val ${k.vcls}">${k.val}</span><span class="foot">${k.foot}</span></div>`).join('');
+  document.getElementById('citycount').textContent=DADOS.filter(d=>d[4]>0).length+" cidades com CTOs";
+}
+
+/* ---------- Donut ---------- */
+function donut(elId,legId,com,tot,comLabel,semLabel){
+  const sem=tot-com, p=pct(com,tot);
+  const R=52,sw=20,C=2*Math.PI*R, size=140, cx=size/2;
+  const off=C*(1-p/100);
+  const good=css('--good'), line=css('--line');
+  document.getElementById(elId).innerHTML=
+    `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" role="img" aria-label="${pf(p)} com fus\u00e3o">`+
+    `<circle cx="${cx}" cy="${cx}" r="${R}" fill="none" stroke="${line}" stroke-width="${sw}"/>`+
+    `<circle cx="${cx}" cy="${cx}" r="${R}" fill="none" stroke="${good}" stroke-width="${sw}" stroke-linecap="round"`+
+    ` stroke-dasharray="${C}" stroke-dashoffset="${off}" transform="rotate(-90 ${cx} ${cx})"/></svg>`+
+    `<div class="mid"><span class="pct">${pf(p)}</span><span class="mlab">com fus\u00e3o</span></div>`;
+  document.getElementById(elId).style.width=size+'px';
+  document.getElementById(elId).style.height=size+'px';
+  document.getElementById(legId).innerHTML=
+    `<div class="row"><span class="sw" style="background:var(--good)"></span>${comLabel} <b>&nbsp;${fmt(com)}</b></div>`+
+    `<div class="row"><span class="sw" style="background:var(--line)"></span>${semLabel} <b>&nbsp;${fmt(sem)}</b></div>`+
+    `<div class="row" style="color:var(--muted);font-size:.84rem">Total&nbsp; <b>&nbsp;${fmt(tot)}</b></div>`;
+}
+function renderDonuts(){
+donut('donut-cto','leg-cto',TOT.ctc,TOT.ctt,'Com fus\u00e3o','Sem fus\u00e3o');
+donut('donut-ceo','leg-ceo',TOT.cxc,TOT.cxt,'Com fus\u00e3o','Sem fus\u00e3o');
+}
+
+/* ---------- Evolution line ---------- */
+function renderEvo(){
+  const W=1080,H=320,P={t:24,r:20,b:46,l:46};
+  const iw=W-P.l-P.r, ih=H-P.t-P.b;
+  const pts=HIST.map(r=>({d:r[0],cto:pct(r[2],r[1]),ceo:pct(r[4],r[3])}));
+  const ymin=45,ymax=75;
+  const x=i=>P.l+iw*(i/(pts.length-1));
+  const y=v=>P.t+ih*(1-(v-ymin)/(ymax-ymin));
+  const mkPath=key=>pts.map((p,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(p[key]).toFixed(1)).join(' ');
+  const accent=css('--accent'),good=css('--good'),line=css('--line'),muted=css('--muted');
+  let grid='';
+  for(let v=45;v<=75;v+=5){const yy=y(v);
+    grid+=`<line x1="${P.l}" y1="${yy}" x2="${W-P.r}" y2="${yy}" stroke="${line}" stroke-width="1"/>`+
+          `<text x="${P.l-8}" y="${yy+4}" text-anchor="end" font-size="12" fill="${muted}">${v}%</text>`;}
+  let xlab='';
+  pts.forEach((p,i)=>{ if(i%1===0){const dd=p.d.slice(8,10)+'/'+p.d.slice(5,7);
+    xlab+=`<text x="${x(i)}" y="${H-P.b+22}" text-anchor="middle" font-size="11" fill="${muted}">${dd}</text>`;}});
+  const dots=key=>pts.map((p,i)=>`<circle cx="${x(i)}" cy="${y(p[key])}" r="3.5" fill="${key==='cto'?good:accent}"/>`).join('');
+  const last=pts[pts.length-1];
+  const area=`M ${x(0)} ${y(pts[0].cto)} `+pts.map((p,i)=>'L '+x(i).toFixed(1)+' '+y(p.cto).toFixed(1)).join(' ')+
+    ` L ${x(pts.length-1)} ${P.t+ih} L ${P.l} ${P.t+ih} Z`;
+  document.getElementById('evo').innerHTML=
+    `<svg width="100%" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" style="min-width:640px" role="img" aria-label="Evolu\u00e7\u00e3o do percentual com fus\u00e3o">`+
+    `<defs><linearGradient id="gcto" x1="0" x2="0" y1="0" y2="1">`+
+    `<stop offset="0" stop-color="${good}" stop-opacity="0.18"/><stop offset="1" stop-color="${good}" stop-opacity="0"/></linearGradient></defs>`+
+    grid+
+    `<path d="${area}" fill="url(#gcto)"/>`+
+    `<path d="${mkPath('ceo')}" fill="none" stroke="${accent}" stroke-width="2.5" stroke-linejoin="round"/>`+
+    `<path d="${mkPath('cto')}" fill="none" stroke="${good}" stroke-width="3" stroke-linejoin="round"/>`+
+    dots('ceo')+dots('cto')+
+    `<text x="${x(pts.length-1)}" y="${y(last.cto)-12}" text-anchor="end" font-size="13" font-weight="700" fill="${good}">${pf(last.cto)}</text>`+
+    xlab+`</svg>`;
+}
+
+/* ---------- Tabela ---------- */
+const COLS=[
+  {k:0,lab:"Cidade",l:true},{k:4,lab:"CTOs"},{k:5,lab:"c/ fus\u00e3o"},{k:"ctop",lab:"CTO %"},
+  {k:2,lab:"CEOs"},{k:3,lab:"c/ fus\u00e3o"},{k:"ceop",lab:"CEO %"}
+];
+let sortKey=4,sortDir=-1,ufFilter="",q="";
+const UFS=["Todas","RN","PB","PE","BA","CE"];
+document.getElementById('filters').innerHTML=UFS.map(u=>
+  `<button data-uf="${u==='Todas'?'':u}" aria-pressed="${u==='Todas'}">${u}</button>`).join('');
+document.getElementById('thead').innerHTML=COLS.map(c=>
+  `<th class="${c.l?'l':''}" data-k="${c.k}">${c.lab} <span class="arr" data-arr="${c.k}"></span></th>`).join('');
+
+function rowVal(r,k){ if(k==='ctop')return pct(r[5],r[4]); if(k==='ceop')return pct(r[3],r[2]); return r[k]; }
+function render(){
+  let rows=DADOS.filter(r=>r[4]>0||r[2]>0);
+  if(ufFilter) rows=rows.filter(r=>r[1]===ufFilter);
+  if(q) rows=rows.filter(r=>r[0].toLowerCase().includes(q));
+  rows.sort((a,b)=>{const av=rowVal(a,sortKey),bv=rowVal(b,sortKey);
+    if(typeof av==='string')return av.localeCompare(bv)*sortDir; return (av-bv)*sortDir;});
+  const barcol=p=>p>=80?'var(--good)':p>=40?'var(--accent)':'var(--warn)';
+  document.getElementById('tbody').innerHTML=rows.map(r=>{
+    const cp=pct(r[5],r[4]), ep=pct(r[3],r[2]);
+    const cell=(p)=>`<td><span class="mini"><span class="bar"><i style="width:${p.toFixed(0)}%;background:${barcol(p)}"></i></span><span class="pctnum">${pf(p)}</span></span></td>`;
+    return `<tr><td class="l">${r[0]}${r[1]?`<span class="uf">${r[1]}</span>`:''}</td>`+
+      `<td>${fmt(r[4])}</td><td>${fmt(r[5])}</td>${cell(cp)}`+
+      `<td>${fmt(r[2])}</td><td>${fmt(r[3])}</td>${cell(ep)}</tr>`;
+  }).join('');
+  // totais do recorte
+  const sum=rows.reduce((a,r)=>{a.ctt+=r[4];a.ctc+=r[5];a.cxt+=r[2];a.cxc+=r[3];return a;},{ctt:0,ctc:0,cxt:0,cxc:0});
+  document.getElementById('tfoot').innerHTML=
+    `<tr><td class="l">${rows.length} cidade(s)</td><td>${fmt(sum.ctt)}</td><td>${fmt(sum.ctc)}</td>`+
+    `<td>${pf(pct(sum.ctc,sum.ctt))}</td><td>${fmt(sum.cxt)}</td><td>${fmt(sum.cxc)}</td><td>${pf(pct(sum.cxc,sum.cxt))}</td></tr>`;
+  document.querySelectorAll('[data-arr]').forEach(s=>{
+    s.textContent=(''+s.dataset.arr===''+sortKey)?(sortDir<0?'\u25bc':'\u25b2'):'';});
+}
+document.getElementById('thead').addEventListener('click',e=>{
+  const th=e.target.closest('th'); if(!th)return; let k=th.dataset.k; if(k!=='0'&&!isNaN(k))k=+k;
+  if(''+k===''+sortKey) sortDir*=-1; else {sortKey=k;sortDir=(k===0)?1:-1;} render();});
+document.getElementById('filters').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b)return; ufFilter=b.dataset.uf;
+  document.querySelectorAll('#filters button').forEach(x=>x.setAttribute('aria-pressed',x===b));
+  render();});
+document.getElementById('search').addEventListener('input',e=>{q=e.target.value.trim().toLowerCase();render();});
+
+function renderAll(){ renderKpis(); renderDonuts(); renderEvo(); render(); }
+
+/* ---------- Leitura ao vivo da planilha (gviz/JSONP) ---------- */
+const SHEET_ID='1-5MKeUTpwc0iSiOcMItGnrLAUhVZPGYgbxLCUww_9Lc';
+function setBadge(live,dateISO){
+  const b=document.getElementById('livebadge'), t=document.getElementById('asof');
+  const d=dateISO?dateISO.slice(8,10)+'/'+dateISO.slice(5,7)+'/'+dateISO.slice(0,4):'25/11/2026';
+  if(live){b.className='badge';t.textContent='PLANILHA VIVA \u00b7 '+d;}
+  else{b.className='badge snap';t.textContent='SNAPSHOT \u00b7 '+d;}
+}
+function gviz(params){return new Promise((res,rej)=>{
+  const cb='__gv'+Math.random().toString(36).slice(2);
+  const s=document.createElement('script');
+  const to=setTimeout(()=>{cleanup();rej(new Error('timeout'));},12000);
+  function cleanup(){clearTimeout(to);try{delete window[cb];}catch(e){}s.remove();}
+  window[cb]=d=>{cleanup();res(d);};
+  s.onerror=()=>{cleanup();rej(new Error('neterr'));};
+  s.src='https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?'+params+'&tqx=out:json;responseHandler:'+cb;
+  document.head.appendChild(s);
+});}
+const gnum=c=>c&&c.v!=null&&c.v!==''?Number(c.v):0;
+const gstr=c=>c&&c.v!=null?String(c.v):'';
+function gdate(c){const v=gstr(c);const m=v.match(/^Date\((\d+),(\d+),(\d+)/);
+  if(m)return m[1]+'-'+String(+m[2]+1).padStart(2,'0')+'-'+String(+m[3]).padStart(2,'0');return v.slice(0,10);}
+async function loadLive(){
+  try{
+    const [dd,hh]=await Promise.all([gviz('gid=0'),gviz('sheet=Historico')]);
+    const dr=dd.table.rows.map(r=>[gstr(r.c[0]),gstr(r.c[1]),gnum(r.c[2]),gnum(r.c[3]),gnum(r.c[4]),gnum(r.c[5])])
+      .filter(r=>r[0]&&r[0].toLowerCase()!=='cidade');
+    const hr=hh.table.rows.map(r=>[gdate(r.c[0]),gnum(r.c[1]),gnum(r.c[2]),gnum(r.c[3]),gnum(r.c[4])])
+      .filter(r=>/^\d{4}-\d{2}-\d{2}$/.test(r[0]));
+    if(dr.length){DADOS=dr;TOT=dr.reduce((a,r)=>({cxt:a.cxt+r[2],cxc:a.cxc+r[3],ctt:a.ctt+r[4],ctc:a.ctc+r[5]}),{cxt:0,cxc:0,ctt:0,ctc:0});}
+    if(hr.length)HIST=hr;
+    setBadge(true,hr.length?hr[hr.length-1][0]:null);
+    renderAll();
+  }catch(e){ setBadge(false,null); }
+}
+const _rb=document.getElementById('reload'); if(_rb) _rb.addEventListener('click',loadLive);
+renderAll();
+loadLive();
+
+var TXT={
+"t-eye":"Proxxima Telecom \u00b7 Rede FTTH","t-h1":"Dashboard de Fus\u00e3o",
+"t-sub":"Progresso de fus\u00e3o de CTOs e caixas de emenda (CEOs) na rede GeoGrid",
+"t-cap1":"Terminais de atendimento com fus\u00e3o conclu\u00edda","t-cap2":"Caixas de emenda com fus\u00e3o conclu\u00edda",
+"t-evoh":"Evolu\u00e7\u00e3o do % com fus\u00e3o","t-evocap":"Percentual conclu\u00eddo ao longo do tempo, por base recebida",
+"t-tcap":"Clique num t\u00edtulo para ordenar"};
+for(var _k in TXT){var _e=document.getElementById(_k);if(_e)_e.textContent=TXT[_k];}
+var _f=document.getElementById("t-foot"); if(_f)_f.innerHTML="Retrato dos dados em <b>25/11/2026</b>, extra\u00eddo da planilha-base viva. Totais j\u00e1 excluem CTO/CEO em projeto, teste e rede a cabo. Pe\u00e7a ao Claude para republicar com a base mais recente.";
+var _rb2=document.getElementById("reload"); if(_rb2)_rb2.textContent="\u21bb Recarregar";
+
+</script>
+
+</body>
+</html>
